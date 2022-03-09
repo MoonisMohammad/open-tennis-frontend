@@ -11,6 +11,7 @@ import {
   Text,
   useColorScheme,
   View,
+  Alert
 } from 'react-native';
 
 //Import Screens
@@ -35,6 +36,7 @@ import { NavigationContainer } from '@react-navigation/native';
 //Login Authentication
 var loginUrl = 'http://52.229.94.153:8080/login';
 var userInfoUrl = 'http://52.229.94.153:8080/appUser';
+var SignUpUrl = 'http://52.229.94.153:8080/registration';
 
 
 const App = () => {
@@ -117,8 +119,6 @@ const App = () => {
      const loginData = `username=${userName}&password=${passWord}`;
      setUsername(userName);
 
-
-
      //formData.delete('username');
      /*
      formData.append('username', userName);
@@ -130,6 +130,10 @@ const App = () => {
 
      let userToken;
      userToken = null;
+     let userEmail;
+     userEmail = null;
+     let appUserRole;
+     appUserRole = null;
 
      
      let successful = false;
@@ -144,7 +148,7 @@ const App = () => {
        body: loginData,
        json: true,
      })
-    
+     
      .then(response => {
            console.log(response);
            return response.json();
@@ -158,101 +162,60 @@ const App = () => {
          //if (resData.authentication === true) {
            //User exists
            //"JIDSession=" + response.headers.get('set-cookie')
+           console.log("AppUserRole: " + resData.appUserRole);
            
-         if (resData.authentication) {
+         if (resData.appUserRole == "MANAGER" || resData.appUserRole == "ADMIN" || resData.appUserRole == "USER") {
              try{
-               console.log("Message: " + resData.message + ', \nAuthentication: ' + resData.authentication);
-               alert("Message: " + resData.message + ', \nAuthentication: ' + resData.authentication); //Testing response from database server
+               console.log("UserName: " + resData.email + ', \n App user Role: ' + resData.appUserRole);
+               alert("UserName: " + resData.email + ', \n App user Role: ' + resData.appUserRole); //Testing response from database server
                //alert('Authentication Successful');
 
+               //Successful Authentication
                successful = true;
                
+               //Set userToken
                userToken = 'fakeToken';
                setUserToken(userToken);
                AsyncStorage.setItem('userToken', userToken);
+
+               //Set UserEmail
+               userEmail = resData.email;
+               setUsername(userEmail);
+               AsyncStorage.setItem('userEmail', userEmail);
+
+               //Set UserRole
+               appUserRole = resData.appUserRole;
+               setUserRole(appUserRole);
+               AsyncStorage.setItem('userRole', appUserRole);
                
                
 
              } catch(e){
                console.log(e);
-               alert(e + "Catch 1");
+               console.log(e + "Catch 1");
              }
        
             }
          
-         
+         //}
          else {
            //user does not exists
            alert("User does not exists");
          }
        })
        .catch(error => {
-           alert(error);
+           alert("User Credentials are Incorrect. Please try again.");
        })
        .done(()=>{
          //If user has successfully logged in then set token and relevant information in AsyncStorage
          console.log("Successful variable after Fetch: " + successful);
          if (successful) {
-          /* try {
-             setTimeout(
-                function() {
-                  fetchUser()
-                    AsyncStorage.setItem('userToken', userToken);*/
-                  dispatch({type: 'LOGIN', id:userName, token: userToken, role: userRole});
-                  console.log("Username: " + loginState.userName + ", LoginState Role: " + loginState.role + ", Decision: " + loginState.managerDecision + ", User Token: " + loginState.userToken);
 
-                   /*
-                 //Store the userToken into AsyncStorage (global variable for whole app)
-                   AsyncStorage.setItem('userToken', userToken); 
-                   //AsyncStorage.setItem('userName', userName);
-                   console.log('user token: ' , userToken);
-
-
-                   s
-                   //Fetch user information
-                   console.log('*****BEFORE FETCH USER******');
-                   //const userFectch = await fetchUser();
-                   //fetchUser();
-                   
-                   console.log('*****AFTER FETCH USER******');
-                   dispatch({type: 'LOGIN', id:userName, token: userToken, role: userRole});
-                   console.log("Username: " + loginState.userName + ", LoginState Role: " + loginState.role + ", Decision: " + loginState.managerDecision + ", User Token: " + loginState.userToken);
-                   */
-
-      //           }
-        //       .bind(this),
-          //     500
-            // );
-           //fetchUser();
-           /*
-
-           //Store the userToken into AsyncStorage (global variable for whole app)
-           AsyncStorage.setItem('userToken', userToken); 
-           //AsyncStorage.setItem('userName', userName);
-           console.log('user token: ' , userToken);
-
-
-           
-           //Fetch user information
-           console.log('*****BEFORE FETCH USER******');
-           //const userFectch = await fetchUser();
-           //fetchUser();
-           
-           console.log('*****AFTER FETCH USER******');
-           dispatch({type: 'LOGIN', id:userName, token: userToken, role: userRole});
-           console.log("Username: " + loginState.userName + ", LoginState Role: " + loginState.role + ", Decision: " + loginState.managerDecision + ", User Token: " + loginState.userToken);
-
-           */
-
-           // dispatch({type: 'LOGIN', id:userName, token: userToken, role: userRole});
-           //console.log("Username: " + loginState.userName + ", LoginState Role: " + loginState.role + ", Decision: " + loginState.managerDecision);
-//           }catch (err){
-  //           console.log("Login: " + err)
-    //       }
+          dispatch({type: 'LOGIN', id:userEmail, token: userToken, role: appUserRole});
+          console.log("Username: " + loginState.userName + ", LoginState Role: " + loginState.role + ", Decision: " + loginState.managerDecision + ", User Token: " + loginState.userToken);
 
          }
          
-
        
         });
 
@@ -282,14 +245,13 @@ const App = () => {
       */
     }, 
     signOut: async() => {
-      //setUserToken(null);
-      //setIsLoading(false);
       console.log("Before Logged out, User Token: " + loginState.userToken + ", User decision: " + loginState.managerDecision);
       try{
        //Remove the userToken from AsyncStorage
        await AsyncStorage.removeItem('userToken');
        await AsyncStorage.removeItem('managerDecision');
        await AsyncStorage.removeItem('userRole');
+       await AsyncStorage.removeItem('userEmail');
 
       } catch(e){
         console.log(e);
@@ -297,9 +259,71 @@ const App = () => {
       dispatch({type: 'LOGOUT'});
       console.log("After Logged out, User Token: " + initialLoginState.userToken + ", User decision: " + initialLoginState.managerDecision);
     },
-    signUp: () => {
-      setUserToken('SDDASG');
-      setIsLoading(false);
+    signUp: async(firstname, lastname, username, password) => {
+
+      fetch(SignUpUrl, {
+        method: 'POST', 
+        headers: {
+          'Accept': 'application/json, text/plain, */*, application/x-www-form-urlencoded', 
+         'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: firstname, 
+          lastName: lastname, 
+          email: username, 
+          password: password 
+        }),
+        json: true,
+      })
+      
+      .then(response => {
+            console.log(response);
+            return response.json();
+          })
+        .then((resData) => {
+            console.log("Message response: " + resData.message);
+            console.log("Token: " + resData.token);
+
+            let newUserToken = "";
+
+            newUserToken = resData.token;
+
+
+            if (resData.message == "Email Confirmation Sent" && newUserToken !=""){
+              Alert.alert(
+                "Successful Registration",
+                "A confirmation email has been sent to you. Please verify your account and then proceed to sign in. Thank you!",
+                [
+                  { text: "OK", onPress: () => console.log("OK Pressed") }
+                ]
+              );
+            }
+            else if(resData.message == "email already taken"){
+              Alert.alert(
+                "Unsuccessful Registration",
+                "This email is already in use. Please register with a different email account. If this is your account then proceed to sign in page. Thank you!",
+                [
+                  { text: "OK", onPress: () => console.log("OK Pressed") }
+                ]
+              );
+            }
+            else if (resData.message.includes('Invalid Addresses')){
+              Alert.alert(
+                "Invalid Email Address",
+                "Please use a valid email address",
+                [
+                  { text: "OK", onPress: () => console.log("OK Pressed") }
+                ]
+              );
+            }
+  
+        })
+        .catch(error => {
+            alert("Sorry Something went wrong. Please try again");
+        })
+        .done(()=>{
+        
+         });
     },
     managerRole: async() => {
      let userDecisionStored;
@@ -360,7 +384,7 @@ const App = () => {
       }
       console.log('user token: ' , userToken);
       console.log('User Role: ' + userRoleStored + "  Manager Decision: " + managerOption);
-      dispatch({type: 'RETRIEVE_TOKEN', token: "Hey", managerDecision: managerOption, role: "MANAGER"});
+      dispatch({type: 'RETRIEVE_TOKEN', token: userToken, managerDecision: managerOption, role: userRoleStored});
       
     }, 1000);
   }, []);
@@ -414,38 +438,6 @@ const App = () => {
   );
 };
 
-
-
-
-{(() => {
-  //Check if user is logged in
-  if(loginState.userToken != null) {
-
-     //User is a Manager and needs to make a decision to where they want to go
-     if(loginState.role == 'MANAGER' && (loginState.managerDecision == null)) {
-         return (
-           <View><Text>Manager Decision</Text></View>
-         )
-     }
-     //Manager User decides to go to Manager App
-     else if (loginState.role == "MANAGER" && loginState.managerDecision == "MANAGER"){
-         return (
-           <ManagerApp/>
-         )
-     }
-     //Otherwise bring user to General app
-     else {
-         return (
-           <GeneralUserApp/>
-         )
-     }
-  }
-  //User is not logged in
-  else {
-    <CoreStackScreen/>
-  }
-
-})}
 
 
 

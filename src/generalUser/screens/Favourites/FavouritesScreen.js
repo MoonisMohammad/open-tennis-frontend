@@ -8,7 +8,8 @@ import {
     Dimensions, 
     Button,
     TouchableOpacity, 
-    FlatList
+    FlatList, 
+    TextInput
 } from 'react-native';
 import {useState, useEffect} from "react";
 import axios from 'axios';
@@ -23,6 +24,9 @@ import Ionicons from 'react-native-vector-icons/Ionicons'
 
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
+
+//API URL
+const viewFavouritesURL = "http://52.229.94.153:8080/facility/favourite";
 
 const data = [
   {id:'1', title: 'Windsor Park', type: 'Tennis', distance: '1', numCourts:'4', occupancy: "Free", address: "1B Windsor Ave, Ottawa" },
@@ -44,19 +48,28 @@ const FavouritesScreen =({navigation}) => {
   const [posts, setPosts] = useState([]);
   const [err, setErr] = useState("");
   const [term, setTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [favourited, setFavourited] = useState(true);
-
+  const [favouritesData, setFavouritesData] = useState([]);
+  const [filteredData, setfilteredData] = useState([]);
+  const [search, setSearch] = useState('');
 
   let apiUrl = 'https://randomuser.me/api/?seed=${seed}&page=${page}&results=20';
 
-  /*
-  const getPosts = (t) => {
-    axios.get('https://randomuser.me/api/?seed=${seed}&page=${page}&results=20').then((res) => {
+  
+  const getFacilities = () => {
+    setIsLoading(true);
+    axios.get(viewFavouritesURL).then((res) => {
       if (res.data.length > 0) {
-        setPosts(res.data);
+        setFavouritesData(res.data);
+        setfilteredData(res.data);
+        setIsLoading(false);
+        console.log(res.data);
       } else {
-        setPosts([]);
-        setErr("No facility found");
+        setFavouritesData([]);
+        setfilteredData([]);
+        setErr("No facilities found");
+        setIsLoading(false);
       }
     });
   };
@@ -71,11 +84,30 @@ const FavouritesScreen =({navigation}) => {
   }
 
   useEffect(() => {
-    getPosts(term)
+    getFacilities()
 
-  }, [term])
+  }, [])
 
-  */
+  const searchFilter = (text) => {
+    if (text) {
+        const newData = favouritesData.filter((item) => {
+            const itemData = item.name ?
+                    item.name.toUpperCase()
+                    : ''.toUpperCase();
+            const textData = text.toUpperCase();
+            return itemData.indexOf(textData) > -1;
+        });
+
+        setfilteredData(newData);
+        setSearch(text);
+
+    } else {
+        setfilteredData(favouritesData);
+        setSearch(text);
+    }
+}
+
+  
 
 
   const handleFavourites = () => {
@@ -101,20 +133,27 @@ const FavouritesScreen =({navigation}) => {
 
   return (
             <View style ={styles.container}>
-              <SearchComponent 
-                  marginLeft={10} 
-                  marginRight={10}
-              /> 
+              <TextInput
+                style={styles.textInputStyle}
+                value ={search}
+                placeholder="Search Favourite Facilities..."
+                underlineColorAndoird="transparent"
+                onChangeText={(text) => searchFilter(text)}>
+              </TextInput>
               <FlatList
-                  data={data}
+                  data={filteredData}
                   keyExtractor={item => item.id}
+                  onRefresh= {() => getFacilities()}
+                  refreshing={isLoading}
                   renderItem={({ item }) => (
                     <TouchableOpacity onPress={() => {navigation.navigate('Analytics', {
                       facilityId: item.id, 
-                      title: item.title, 
-                      numCourts: item.numCourts, 
+                      title: item.name, 
+                      itemLatitude: item.latitude, 
+                      itemLongitude: item.longitude,
                       occupancy: item.occupancy,
-                      address: item.address
+                      address: item.address, 
+                      itemInitSelectedType: "ANY",
                     })}}> 
                       <View style={styles.listItem}>
                         
@@ -126,8 +165,8 @@ const FavouritesScreen =({navigation}) => {
                         
 
                         <View style = {styles.SecondaryContent}>
-                          <Text style={styles.listItemTextMain}>{item.title}</Text>
-                          <Text style={styles.listItemTextSub}>{item.type}   |   Courts: {item.numCourts}   |   {item.distance} km   </Text>
+                          <Text style={styles.listItemTextMain}>{item.name}</Text>
+                          <Text style={styles.listItemTextSub}>{item.city}</Text>
                         </View>
 
                         <IconMat
@@ -204,6 +243,15 @@ const styles = StyleSheet.create({
       marginRight: 45, 
       marginLeft: 10
     }, 
+    textInputStyle: {
+      height: 40, 
+      borderWidth: 1, 
+      paddingLeft: 20, 
+      width: '90%',
+      borderRadius: 15,
+      borderColor: 'black', 
+      backgroundColor: '#E2F1DB'
+  },
 
 
   });

@@ -19,7 +19,7 @@ const SigninDemo = ({navigation}) => {
     const loginHandle = () => {
         //signIn(username,  password);
         console.log("---------------Log in Attempt --------------- \n"); 
-        console.log("Credentials: username" + username + ", password: " + password);
+        console.log("Credentials: username: " + username + ", password: " + password);
         if (username.trim()!=="" && password.trim()!==""){
             console.log("No Missing Credentials: username: " + username + ", password: " + password);
             signIn(username, password);

@@ -18,7 +18,7 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
-const OccupancyStatus =(props) => {
+const IndOccupancyStatus =(props) => {
   let status = props.OccupancyStatus;
 
   const getOccupancy = () => {
@@ -27,9 +27,6 @@ const OccupancyStatus =(props) => {
     }
     else if (status == 'BUSY'){
       return '#D32E2E'
-    }
-    else if (status == 'MODERATELY BUSY'){
-      return '#F9B70F'
     }
     else{
       return '#696A6D' // Not occupancy status
@@ -42,13 +39,7 @@ const OccupancyStatus =(props) => {
                <Icon 
                     name="circle"
                     size={75} 
-                    color= {getOccupancy()}/>
-                <View style= {styles.statusContent}>
-                    <Text style={styles.mainText}>OCCUPANCY STATUS: </Text>
-                    <Text style={styles.statusText} >{status}</Text>
-                </View>
-                
-              
+                    color= {getOccupancy()}/>              
             </View>
     
   );
@@ -57,38 +48,13 @@ const OccupancyStatus =(props) => {
 }
 const styles = StyleSheet.create({
     container : {
-      paddingTop: 20,
       alignItems: 'center', 
       justifyContent: 'center', 
+      marginTop: '60%'
 
     },  
-
-    statusContent: {
-        flexDirection: 'row',
-    },
-
-    mainText: {
-        textAlignVertical: 'center', 
-        textAlign : 'center', 
-        justifyContent : 'center',
-        fontSize: 16,
-        fontWeight : '400',
-        paddingVertical : 12,
-        color: 'black'
-    }, 
-
-    statusText: {
-        textAlignVertical: 'center', 
-        textAlign : 'center', 
-        justifyContent : 'center',
-        fontSize: 18,
-        fontWeight : 'bold',
-        paddingVertical : 12,
-        color: 'black'
-
-    }
   });
 
 
 
-export default OccupancyStatus;
+export default IndOccupancyStatus;

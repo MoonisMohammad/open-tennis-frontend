@@ -16,7 +16,10 @@ import {
 //Imports
 import Icon from 'react-native-vector-icons/FontAwesome';
 
-const postFacilityURL = 'https://mywebsite.com/endpoint/';
+import SelectDropdown from 'react-native-select-dropdown';
+
+const postFacilityURL = 'http://52.229.94.153:8080/facility';
+const getCitiesURL = 'http://52.229.94.153:8080/facility/cities';
 
 const FacilityCreate = ({navigation}) => {
     //Form Variables
@@ -24,12 +27,43 @@ const FacilityCreate = ({navigation}) => {
     const [facilityCity, setFacilityCity] = useState("");
     const [facilityLatitude, setFacilityLatitude] = useState("");
     const [facilityLongitude, setFacilityLongitude] = useState("");
+    const [cityOptions, setCityOptions] = useState([]);
+
+
+
+    //Fetch Device Options
+    const getCityOptions = () => {
+        fetch(getCitiesURL, {
+            method: 'Get',
+            headers: {
+                'Accept': 'application/json',
+               'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+        })
+        .then(response => {
+            return response.json();
+        })
+        .then((resJSON) => {
+            //Set City Options
+            setCityOptions(resJSON);
+            console.log(resJSON);
+
+
+        })
+        .catch(error => {
+            console.log(error);
+        })
+        .done(() => {
+
+        });
+    }
 
 
 
     //Method: Post Facility to the database
     const createFacility = () => {
-        let successfullPost = false;
+        let successfullPost = true;
         fetch(postFacilityURL, {
             method: 'POST',
             headers: {
@@ -37,11 +71,10 @@ const FacilityCreate = ({navigation}) => {
                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                facilityID: facilityID,
-                facilityName: facilityName, 
-                facilityCity: facilityCity, 
-                facilityLatitud: facilityLatitude,
-                facilityLongitude: facilityLongitude,
+                name: facilityName, 
+                city: facilityCity, 
+                latitude: facilityLatitude,
+                longitude: facilityLongitude,
             }),
             credentials: 'include'
         })
@@ -50,23 +83,27 @@ const FacilityCreate = ({navigation}) => {
         })
         .then((resJSON) => {
             //TODO
-            //Figure out if the post was successful or not, then update the successful variable
+            //Currently no response from the backend
 
         })
         .catch(error => {
-            alert(error);
+            console.log(error);
         })
         .done(() => {
-            if (successfullPost){
-                alert("You have successfully created a Facility")
-            }
-            else {
-                alert("Error: facility was not created. Please try again")
-            }
+
+            alert("You have successfully created a new Facility");
+            navigation.goBack();
 
         });
 
     }
+
+
+    useEffect(() => {
+        //Get request to get types of available cities
+        getCityOptions();
+        
+      }, []);
 
 
 //alert("Create new facility! Note just call FacilityCraete when ready")
@@ -110,14 +147,17 @@ const FacilityCreate = ({navigation}) => {
                     
                     ></TextInput>
                     <Text style ={styles.fieldText}>Facility City:</Text>
-                    <TextInput
-                        style={styles.textInputStyle}
-                        value ={facilityCity}
-                        placeholder="Facility City Here"
-                        underlineColorAndoird="transparent"
-                        onChangeText={(text) => setFacilityCity(text)}
-                    
-                    ></TextInput>
+                    <SelectDropdown
+                        data={cityOptions}
+                        style={{animated: true, fontSize: 20}} 
+                        buttonStyle={styles.buttonStyle} 
+                        defaultButtonText="Select Facility City"
+                        dropdownStyle={styles.dropdownStyle}
+                        onSelect={(selectedItem, index) => {
+                            setFacilityCity(selectedItem);
+                            console.log(selectedItem, index);
+                        }}
+                    />
                     <Text style ={styles.fieldText}>Latitude:</Text>
                     <TextInput
                         style={styles.textInputStyle}
@@ -185,5 +225,22 @@ const styles = StyleSheet.create ({
     fieldText: {
         fontSize: 17, 
         color: 'black'
-    }
+    }, 
+    buttonStyle: {
+        marginHorizontal: 6,
+        width: '97%',
+        backgroundColor: '#E2F1DB',
+        color: 'black',
+        textAlign: 'center',
+        textAlignVertical: 'center',
+
+      },
+
+      dropdownStyle: {
+        backgroundColor: '#84EA95',
+        width: '98%',
+        borderColor: '#0C4B16',
+        borderWidth: 2,
+        borderRadius: 20,
+      },
 });

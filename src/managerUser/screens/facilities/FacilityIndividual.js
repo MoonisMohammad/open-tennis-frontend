@@ -9,16 +9,28 @@ import {
     FlatList, 
     ActivityIndicator, 
     TextInput, 
-    SafeAreaView
+    SafeAreaView, 
+    SectionList, 
+    Linking
 
 } from 'react-native';
 
 //Imports
 import Icon from 'react-native-vector-icons/FontAwesome';
 
+//API URL
 const postFacilityURL = 'https://mywebsite.com/endpoint/';
+const getDevicesURL = 'http://52.229.94.153:8080/device/inFacility/';
+
+
+const API_KEY = "AIzaSyCu9nK77w0j9LME2vt5HzcshWhWbYEQtGE";
+
+
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
+
+//Geocoding
+import Geocoder from 'react-native-geocoding';
 
 
 const data = [
@@ -27,45 +39,174 @@ const data = [
   
   ]
 
+
+const dataREAL = [
+    {id: 3, ownerId: 1, facilityId: 2,
+    name: "Device_Far_1",
+    authorizationId: "16906220214084426226",
+    inUse: true,
+    areasMonitored: 0,
+    deviceType: "SwimmingPool",
+    currOccupancy: []
+    },
+    {
+        id: 4,
+        ownerId: 1,
+        facilityId: 2,
+        name: "Device_Far_Right",
+        authorizationId: "4185022021408470626",
+        inUse: true,
+        areasMonitored: 3,
+        deviceType: "SwimmingPool",
+        currOccupancy: [
+            0,
+            0,
+            0
+        ]
+    },
+    {
+        id: 5,
+        ownerId: 1,
+        facilityId: 2,
+        name: "Device_Far_Left",
+        authorizationId: "29442220214091243243",
+        inUse: true,
+        areasMonitored: 1,
+        deviceType: "Tennis",
+        currOccupancy: [
+            0
+        ]
+    }
+  
+]
+
 const FacilityIndividual = ({navigation, route}) => {
 
     //Route Params
-    const { itemId, itemTitle } = route.params;
+    const { itemID, itemTitle, itemOwnerId, itemCity, itemLatitude, itemLongitude } = route.params;
+    // itemID: item.id, 
+    // itemOwnerId: item.ownerId,
+    // itemTitle: item.name, 
+    // itemCity: item.city,
+    // itemLatitude: item.latitude, 
+    // itemLongitude: item.longitude
 
     //Form Variables
     const [facilityID, setFacilityID] = useState("");
     const [facilityName, setFacilityName] = useState("");
     const [facilityCity, setFacilityCity] = useState("");
+    const [facilityLatitude, setFacilityLatitude] = useState("");
+    const [facilityLongitude, setFacilityLongitude] = useState("");
+    const [facilityAddress, setFacilityAddress] = useState("");
+
+
     const [facilityOwner, setFacilityOwner] = useState("");
-    const [ facilityCompany, setFacilityCompany] = useState("");
+    const [facilityCompany, setFacilityCompany] = useState("");
+    const [error, setError] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(true);
+    const [unmounted, setUnounted] = useState(true);
+
+    const [allDevicesData, setAllDevices] = useState([]);
+
+
+
+    //Retrieve Location of the Facility
+    const getLocation = () => {
+        Geocoder.init(API_KEY);
+
+        Geocoder.from(itemLatitude, itemLongitude)
+		.then(json => {
+        	var addressComponent = json.results[0].formatted_address;
+			console.log(addressComponent);
+            setFacilityAddress(addressComponent);
+		})
+		.catch(error => console.warn(error));
+    }
+
+
+    //Retreive the Devices in the Facility
+    const fetchDevices = () => {
+
+        const selectedFacility = `${itemID}`;
+        const fetchDevicePath = getDevicesURL + selectedFacility;
+        console.log("Fetch all devices in Facility URL: " + fetchDevicePath);
+
+        setIsLoading(true);
+        fetch(fetchDevicePath,{
+            method: 'Get',
+            headers: {
+                'Accept': 'application/json',
+               'Content-Type': 'application/json'
+            },
+            // body: JSON.stringify({
+            //     facilityName: facilityName, 
+            //     facilityCity: facilityCity
+            // }),
+            credentials: 'include'
+        })
+        .then((response) => response.json())
+        .then((responseJson) => {
+            console.log(responseJson);
+            console.log("unmounted:" + unmounted);
+            setAllDevices(responseJson);
+            console.log(responseJson);
+            //setRefreshing(false);
+            setIsLoading(false);
+            setError(false);
+        })
+        .catch(err => {
+            setIsLoading(false);
+            // setError(err);
+        }).done(() => {
+          setUnounted(false);
+          //alert("You have successfully updated the Facility")
+      
+      });
+
+    }
 
 
     useEffect(() => {
 
-        setFacilityName("Carleton Heights Community Center");
+        //Fetch Devices in Facility
+        fetchDevices();
+        getLocation();
+
+        
+        setFacilityID(itemID);
+        setFacilityName(itemTitle);
+        setFacilityCity(itemCity);
+        setFacilityLatitude(itemLatitude);
+        setFacilityLongitude(itemLongitude);
         setFacilityOwner("John Manager");
-        setFacilityCity("Ottawa");
         setFacilityCompany("City of Ottawa")
+        console.log("Facility ID: " + itemID);
         
       }, []);
     
       const renderItem = ({ item }) => (
         <TouchableOpacity onPress={() => {
             navigation.navigate("DeviceIndividual_Page", {
+                facility_Name: itemTitle,
+                facility_ID: itemID,
                 itemID: item.id, 
-                itemTitle: item.title,
-                itemAreas: item.areasMonitored
+                itemTitle: item.name,
+                itemAreas: item.areasMonitored,
+                device_Type: item.deviceType,
+                current_Occupancy: item.currOccupancy
               })
         }}> 
-        <Item title={item.title} numAreas={item.areasMonitored}/>
+        <Item title={item.name} numAreas={item.areasMonitored} device_type={item.deviceType}/>
         </TouchableOpacity>
       );
 
-      const Item = ({ title, numAreas }) => (
+      const Item = ({ title, numAreas, device_type }) => (
         <View style={styles.itemStyle}>
             <View>
                 <Text style={styles.listItemTextMain}>{title}</Text>
                 <Text style={styles.listItemTextSub}>Areas Monitored: {numAreas} </Text>
+                <Text style={styles.listItemTextSub}>Device Type: {device_type} </Text>
            </View>
         </View>
       );
@@ -81,10 +222,10 @@ const FacilityIndividual = ({navigation, route}) => {
     }
 
     //Method: Get Devices from Facility
-    const fetchDevices = () => {
+    const displayDevices = () => {
         return (
             <FlatList   
-              data={data}
+              data={allDevicesData}
               keyExtractor={(item, index) => index.toString()}
               ItemSeparatorComponent={ItemSeparatorView}
               renderItem={renderItem}
@@ -95,6 +236,12 @@ const FacilityIndividual = ({navigation, route}) => {
         );
 
     }
+
+    const url = Platform.select({
+        ios: "maps:" + itemLatitude + "," + itemLongitude + "?q=" + itemLatitude + "+" + itemLongitude,
+        android: "geo:" + itemLatitude + "," + itemLongitude + "?q=" + facilityAddress
+      });
+
 
 
 //alert("Create new facility! Note just call FacilityCraete when ready")
@@ -117,7 +264,14 @@ const FacilityIndividual = ({navigation, route}) => {
                         color='black'
                         size={30}
                         backgroundColor="white"
-                        onPress={() => navigation.navigate("FacilityEdit_Page")}
+                        onPress={() => navigation.navigate("FacilityEdit_Page", {
+                            itemID: itemID, 
+                            itemOwnerId: itemOwnerId,
+                            itemTitle: itemTitle, 
+                            itemCity: itemCity,
+                            itemLatitude: itemLatitude, 
+                            itemLongitude: itemLongitude
+                          })}
                         >
                         <Text style={{fontSize: 20, fontWeight: 'bold', color: '#0B5B13'}}>EDIT</Text>
                                     
@@ -125,11 +279,19 @@ const FacilityIndividual = ({navigation, route}) => {
                 </View>
                 <View style={styles.title}>
                     <Text style={styles.titleText}>{facilityName}</Text>
-
-                    <View>
-                        <Text style={styles.subText}>Owner: {facilityOwner}</Text>
-                        <Text style={styles.subText}>Company: {facilityCompany}</Text>
-                        <Text style={styles.subText}>City: {facilityCity}</Text>
+                    <View style = {{justifyContent: "space-between", flexDirection: 'row'}}> 
+                            <View style = {{flexDirection: 'column', width: '60%'}}>
+                                <Text style={{fontWeight: 'bold', color:'black'}}>Address:</Text>
+                                <Text style={styles.subText}>{facilityAddress}</Text>
+                            </View>
+                            <TouchableOpacity
+                            style={styles.mapsButton}
+                                
+                            onPress={() => Linking.openURL(url)}
+                            >
+                                <Text style = {styles.buttonText}>GO</Text>
+                                    
+                            </TouchableOpacity>
                     </View>
                     <View 
                         style={{
@@ -143,35 +305,37 @@ const FacilityIndividual = ({navigation, route}) => {
                 
                 <View style={{marginTop: 10, marginLeft: 5}}>
                     
-                    <Text style={{fontWeight:'bold', color: 'black', fontSize: 17}}>TENNIS</Text>
+                    <Text style={{fontWeight:'bold', color: 'black', fontSize: 17, textAlign: 'center'}}>Devices</Text>
+                    {/* <SectionList
+                        sections={allDevicesData}
+                        keyExtractor={(item, index) => item + index}
+                        renderItem={({ item }) => <Item title={item.name} numAreas={item.areasMonitored} />}
+                        renderSectionHeader={({ section: { deviceType } }) => (
+                            <Text style={styles.header}>{deviceType}</Text>
+                        )}
+                    /> */}
 
-                    {fetchDevices()}
+                    {displayDevices()}
                     
             
                 </View>
 
-              
+                <View style = {styles.buttonView}>
                     <TouchableOpacity style={styles.addButton}>
-                        <Icon.Button
+                        <Icon
                             name="plus-circle"
                             color='#2D0C57'
                             size={60}
                             backgroundColor="white"
-                            onPress={() => navigation.navigate("DeviceCreate_Page", {
-                                itemID: facilityID, 
-                                itemTitle: facilityName
+                            onPress={() => navigation.navigate("QRScanner_Page", {
+                                facility_id: facilityID, 
+                                facility_title: facilityName
                               })
                             }
-                            >
-                           
-                                        
-                        </Icon.Button>
+                            >                    
+                        </Icon>
                     </TouchableOpacity>
-                    
-             
-                
-                       
-             
+                </View>
                     
 
             </SafeAreaView>
@@ -209,15 +373,20 @@ const styles = StyleSheet.create ({
         color: 'black', 
     }, 
     addButton: {
+
+    }, 
+    buttonView: {
         position: 'absolute', 
         bottom: 0, 
-        right: 0
-    }, 
+        right: 5, 
+        flexDirection: 'column'
+
+    },
     listItemTextMain: {
-        fontSize: 15, 
+        fontSize: 20, 
         color: '#000000', 
         fontWeight: 'bold', 
-        paddingTop: 4
+        paddingTop: 2
       }, 
       listItemTextSub: {
           fontSize: 16, 
@@ -229,7 +398,7 @@ const styles = StyleSheet.create ({
         flexDirection: 'column',
         marginTop: 10,
 
-        padding: 15,
+        padding: 12,
         flexDirection: 'row',
         justifyContent : 'flex-start',
         alignItems: 'center',
@@ -246,5 +415,20 @@ const styles = StyleSheet.create ({
         shadowRadius: 5,
         elevation: 3,
     }, 
+    buttonText: {
+        color: '#FFFFFF', 
+        fontWeight: 'bold', 
+        fontSize: 21
+  
+      },
+  
+      mapsButton: {
+        alignItems: 'center', 
+        justifyContent: 'center',
+        backgroundColor: '#28B625', 
+        borderRadius: 15, 
+        height: 35,
+        width: 60,       
+      },
 
 });

@@ -8,7 +8,8 @@ import {
     TouchableOpacity, 
     FlatList, 
     ActivityIndicator, 
-    TextInput
+    TextInput, 
+    RefreshControl
 
 } from 'react-native';
 
@@ -16,12 +17,65 @@ import {
 //Imports
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import IconMat from 'react-native-vector-icons/MaterialCommunityIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons'
 
 //const AddIcon = <Icon name="rocket" size={30} color="#900" />;
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
-const API_URL = `https://raw.githubusercontent.com/adhithiravi/React-Hooks-Examples/master/testAPI.json`;
+//Main API
+const FacilityOwned_URL = 'http://52.229.94.153:8080/facility/owned';
+
+//Test APIs
+//const API_URL = `https://raw.githubusercontent.com/adhithiravi/React-Hooks-Examples/master/testAPI.json`;
+const apiURL = 'https://jsonplaceholder.typicode.com/posts';
+
+
+
+//Testing Data
+const facilityDataTest = [
+  {
+      "id": 1,
+      "ownerId": 2,
+      "name": "Lyndwood Tennis Club",
+      "city": "MISSISSAUGA",
+      "latitude": 43.57663,
+      "longitude": -79.57103
+  },
+  {
+    "id": 2,
+    "ownerId": 2,
+    "name": "Farm Park",
+    "city": "MISSISSAUGA",
+    "latitude": 43.62663,
+    "longitude": -79.57103
+},
+{
+  "id": 3,
+  "ownerId": 2,
+  "name": "Central Park",
+  "city": "MISSISSAUGA",
+  "latitude": 43.62663,
+  "longitude": -79.57103
+},
+{
+  "id": 4,
+  "ownerId": 2,
+  "name": "State Park",
+  "city": "MISSISSAUGA",
+  "latitude": 43.62663,
+  "longitude": -79.57103
+},
+{
+"id": 5,
+"ownerId": 2,
+"name": "Nature Park",
+"city": "MISSISSAUGA",
+"latitude": 43.62663,
+"longitude": -79.57103
+}
+]
 
 
   const Item = ({ title, city }) => (
@@ -42,37 +96,40 @@ const DeviceScreen = ({navigation}) => {
 
     const [error, setError] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(true);
+    const [unmounted, setUnounted] = useState(true);
 
-
-    useEffect(() => {
-        fetchPosts();
-        return () => {
-
-        }
-
-      }, []);
 
       const fetchPosts = () => {
-        const apiURL = 'https://jsonplaceholder.typicode.com/posts';
-        fetch(apiURL)
+        setIsLoading(true);
+        const FacilityOwned_URL = 'http://52.229.94.153:8080/facility/owned';
+        fetch(FacilityOwned_URL)
         .then((response) => response.json())
         .then((responseJson) => {
+            console.log(responseJson);
+            console.log("unmounted:" + unmounted);
             setfilteredData(responseJson);
             setMainData(responseJson);
+            setRefreshing(false);
             setIsLoading(false);
+            setError(false);
         })
         .catch(err => {
             setIsLoading(false);
-            setError(err);
-        })
+            // setError(err);
+        }).done(() => {
+          setUnounted(false);
+          //alert("You have successfully updated the Facility")
+      
+      });
       }
 
 
     const searchFilter = (text) => {
         if (text) {
             const newData = mainData.filter((item) => {
-                const itemData = item.title ?
-                        item.title.toUpperCase()
+                const itemData = item.name ?
+                        item.name.toUpperCase()
                         : ''.toUpperCase();
                 const textData = text.toUpperCase();
                 return itemData.indexOf(textData) > -1;
@@ -87,24 +144,28 @@ const DeviceScreen = ({navigation}) => {
         }
     }
 
-    const ItemView = ({item}) => {
-        return(
-            <TouchableOpacity onPress={() => {
-                alert("ItemID: " + item.id + ", Facility Name: " + item.title)
-            }}> 
-            <Item title={item.title} city={item.id}/>
-            </TouchableOpacity>
-        )
-    }
+    // const ItemView = ({item}) => {
+    //     return(
+    //         <TouchableOpacity onPress={() => {
+    //             alert("ItemID: " + item.id + ", Facility Name: " + item.title)
+    //         }}> 
+    //         <Item title={item.title} city={item.id}/>
+    //         </TouchableOpacity>
+    //     )
+    // }
 
     const renderItem = ({ item }) => (
         <TouchableOpacity onPress={() => {
             navigation.navigate("FacilityIndividual_Page", {
               itemID: item.id, 
-              itemTitle: item.title
+              itemOwnerId: item.ownerId,
+              itemTitle: item.name, 
+              itemCity: item.city,
+              itemLatitude: item.latitude, 
+              itemLongitude: item.longitude
             })
         }}> 
-        <Item title={item.title} city={item.id}/>
+        <Item title={item.name} city={item.city}/>
         </TouchableOpacity>
       );
 
@@ -133,8 +194,8 @@ const DeviceScreen = ({navigation}) => {
       //Check if the data is currently being fetched
       if (isLoading) {
         return (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 200 }}>
-            <ActivityIndicator size="large" color="#5500dc" />
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 200, backgroundColor: 'white' }}>
+            <ActivityIndicator size="large" color="#82CB76" />
           </View>
         );
       }
@@ -150,24 +211,46 @@ const DeviceScreen = ({navigation}) => {
         );
       }
         return (
-            <FlatList   
-              data={filteredData}
-              keyExtractor={(item, index) => index.toString()}
-              ItemSeparatorComponent={ItemSeparatorView}
-              renderItem={renderItem}
 
-            >
-            </FlatList>
+            //  <View>
+            //    {refreshing ? <ActivityIndicator/> : null}
+  
+              <FlatList   
+                data={filteredData}
+                keyExtractor={(item, index) => index.toString()}
+                ItemSeparatorComponent={ItemSeparatorView}
+                renderItem={renderItem}
+                //  refreshControl={
+                //    <RefreshControl refreshing={refreshing} onRefresh={fetchPosts()} />
+                //  }
+
+              >
+              </FlatList>
+  
+            //{/* </View>  */}
 
             );
      };
 
 
+     useEffect(() => {
+
+      // if (unmounted){
+      //   console.log(unmounted);
+      fetchPosts();
+
+      // }
+      
+       return () => {
+
+       }
+
+    }, []);
 
 
     return(
         <View style ={styles.container}>
-            <SafeAreaView style={{flexDirection: 'column'}}>
+            <SafeAreaView style={{flexDirection: 'column', backgroundColor: 'white'}}>
                     <View style={{flex: 1, position: 'absolute', backgroundColor: 'white', width: '100%', marginBottom: '75%'}}>
                         <TextInput
                             style={styles.textInputStyle}
@@ -178,7 +261,7 @@ const DeviceScreen = ({navigation}) => {
                             >
 
                         </TextInput>
-                        <View style={{width: '40%'}}>
+                        <View style={{width: '100%', flexDirection: 'row', justifyContent: 'space-between'}}>
                                 <Icon.Button
                                     name="plus"
                                     color='black'
@@ -189,7 +272,21 @@ const DeviceScreen = ({navigation}) => {
                                     <Text style={{fontSize: 15, color: 'black'}}>Add facility</Text>
                                     
                                 </Icon.Button>
+                                <TouchableOpacity
+                                    onPress={()=> fetchPosts()}
+                                  
+                                 
+                                 >
+                                  <Ionicons
+                                      name="refresh"
+                                      size={37}
+                                      color = "black"
+                                    >
 
+                                  </Ionicons>
+                                </TouchableOpacity>
+                                {/* {renderList()} */}
+                              
                         </View>             
                     </View>
                     <View style={{marginTop: '25%'}}>
@@ -207,7 +304,8 @@ const DeviceScreen = ({navigation}) => {
 const styles = StyleSheet.create({
     container : {
       backgroundColor: "white",
-      padding: 10
+      padding: 10, 
+      height: '100%'
       
     },  
     itemStyle: {

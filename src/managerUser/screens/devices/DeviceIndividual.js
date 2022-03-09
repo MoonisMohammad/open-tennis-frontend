@@ -16,11 +16,27 @@ import {
 //Imports
 import Icon from 'react-native-vector-icons/FontAwesome';
 
+//DropDown import
+import SelectDropdown from 'react-native-select-dropdown';
+import moment from 'moment';
+
 const postFacilityURL = 'https://mywebsite.com/endpoint/';
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
-const DeviceIndividual = ({navigation}) => {
+//API
+const getDataBetweenDatesURL = "http://52.229.94.153:8080/data/between?";
+
+const DeviceIndividual = ({navigation, route}) => {
+    //Route Params
+    const { facility_Name, facility_ID, itemID, itemTitle, itemAreas, device_Type, current_Occupancy} = route.params;
+
+    //Main Variables
+    const [isLoading, setIsLoading] = useState(false);
+    const [isError, setIsError] = useState(null);
+    const [isDataEmpty, setIsDataEmpty] = useState(false);
+
+
     //Form Variables
     const [facilityID, setFacilityID] = useState("");
     const [deviceID, setDeviceID] = useState("");
@@ -32,23 +48,177 @@ const DeviceIndividual = ({navigation}) => {
     const [areasMonitored, setAreasMonitored] = useState("");
     const [deviceType, setDeviceType] = useState("");
 
+    //Occupancy Details
+    const [areaReferencesData, setAreaReferencesData] = useState([]);
+    const [targetReferenceArea, setTargetReferenceArea] = useState("");
+    const [occupancyData, setOccupancyData] = useState("");
+
 
     useEffect(() => {
 
-        setFacilityID("12351513");
-        setDeviceID("235esagd");
+        setFacilityID(facility_ID);
+        setDeviceID(itemID);
+        setFacilityName(facility_Name);
+        setDeviceName(itemTitle);
+        setAreasMonitored(itemAreas);
+        handleNumberRefAreas();
+        setTargetReferenceArea(0);
+        getAreaData(0);
 
-        setFacilityName("Carleton Heights Community Center");
-        setFacilityOwner("John Manager");
-        setDeviceName("CHeights_Device_1_Left");
-        setDeviceLatitude("45.424721");
-        setDeviceLongitude("-75.695000");
-        setAreasMonitored(2);
-        
       }, []);
 
+    useEffect(() => {
+        setTimeout(() => {
+            if (targetReferenceArea == ""){
+                getAreaData(0);
+            }
+            else {
+                getAreaData(targetReferenceArea);
+            }
+            
+        }, 300000);
+    }, []);
+
+
+    const handleNumberRefAreas = () => {
+        let areasRefList = [];
+
+        for(let i = 0; i < itemAreas; i++){
+            let item = "Area " + (i+1);
+            areasRefList.push(item);
+        }
+        console.log(areasRefList);
+
+        setAreaReferencesData(areasRefList);
+    }
+
+
+    const getAreaData = (numRef) => {
+
+        //Set current date and time (including the starting date)
+        const startDate = "2022-02-01";
+        const toDate = moment().utcOffset('+05:00').format('YYYY-MM-DD');
+        const toTime = moment().utcOffset('+05:00').format('HH:mm:ss');
+
+
+        const details = `fromDateTime=${startDate}T01:00:00&ToDateTime=${toDate}T${toTime}&deviceId=${itemID}&referenceNumber=${numRef}`;
+        const deviceDataPath = getDataBetweenDatesURL + details;
+
+        console.log("Area Monitored Data URL: " + deviceDataPath);
+        setIsLoading(true);
+        setIsDataEmpty(false);
+        
+        fetch(deviceDataPath,{
+            method: 'Get',
+            headers: {
+                'Accept': 'application/json',
+               'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+        })
+        .then((response) => response.json())
+        .then((responseJson) => {
+            console.log(responseJson);
+            setOccupancyData(responseJson);
+            setTargetReferenceArea(numRef);
+            setIsLoading(false);
+
+            if (responseJson && responseJson.length > 0) {
+                setIsDataEmpty(false);
+            }
+            else {
+                setIsDataEmpty(true);
+            }
+        })
+        .catch(err => {
+            setIsLoading(false);
+            alert(err);
+        }).done(() => { 
+          //alert("You have successfully updated the Facility")
+      
+      });
+    }
+
+    const item = ({item}) => {
+        return (
+            <View style={{flexDirection:'row'}}>
+                <View style={styles.dataField}>
+                    <Text style ={styles.rowText}>{item.date}</Text>
+                </View>
+                <View style={styles.dataField}>
+                    <Text style ={styles.rowText}>{item.time}</Text>
+                </View>
+                <View style={styles.dataField}>
+                    <Text style ={styles.rowText}>{item.dayOfWeek}</Text>
+                </View>
+                <View style={styles.dataField}>
+                    <Text style={{textAlign:'center', color: 'black'}} >{item.count}</Text>
+                </View>
+            </View>
+        )
+    }
+
     //Method: Get Devices from Facility
-    const fetchOccupancyData = () => {
+    const displayOccupancyData = () => {
+        //Check if the data is currently being fetched
+        if (isDataEmpty) {
+            return (
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 18}}>
+                     There is no data for this Area. 
+                    </Text>
+                </View>
+                );
+
+        }
+        if (isLoading) {
+            return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                <ActivityIndicator size="large" color="#82CB76" />
+            </View>
+            );
+        }
+
+        //Check if there is an error while fetching the data
+        if (isError) {
+            return (
+            <View style={{flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ fontSize: 18}}>
+                Error fetching data...
+                </Text>
+            </View>
+            );
+        }
+        return (
+
+                <FlatList
+                    data = {occupancyData}
+                    renderItem={item}
+                    keyExtractor={(item, index) => index.toString()}
+                        >
+                </FlatList>
+  
+    
+            );
+
+    }
+
+
+
+
+    const handleAreaChange=(reference) => {
+        //Extract Reference number
+        //Update main Data list with updated filter
+        var numRef = reference.replace('Area ','');
+        numRef = numRef - 1;
+        console.log("Reference Number: " + numRef);   //prints: 123
+
+
+        //Set new target reference ID
+        setTargetReferenceArea(reference);
+
+        //Fetch Data for Selected Monitored Reference Area
+        getAreaData(numRef);
 
     }
 
@@ -89,11 +259,10 @@ const DeviceIndividual = ({navigation}) => {
                     <Text style={styles.titleText}>{deviceName}</Text>
 
                     <View>
-                        <Text style={styles.subText}>Facility: {facilityName}</Text>
-                        <Text style={styles.subText}>Manager: {facilityOwner}</Text>
-                        <Text style={styles.subText}>Latitude: {deviceLatitude}</Text>
-                        <Text style={styles.subText}>Longitude: {deviceLongitude}</Text>
+                        <Text style={styles.subText}>Facility: {facility_Name}</Text>
+                        <Text style={styles.subText}>FacilityID: {facility_ID}</Text>
                         <Text style={styles.subText}>Areas Monitored: {areasMonitored}</Text>
+                        <Text style={styles.subText}>Device Type: {device_Type}</Text>
                     </View>
                     <View 
                         style={{
@@ -104,44 +273,47 @@ const DeviceIndividual = ({navigation}) => {
                   >
                     </View>
                 </View>
+
+                <View style={{marginTop: 10, marginLeft: 5, flexDirection: 'row'}}>
+                    <Text style={styles.selectText}>Select Monitored Area: </Text>
+                    <SelectDropdown
+                            data={areaReferencesData}
+                            style={{animated: true, fontSize: 20}} 
+                            buttonStyle={styles.buttonStyle} 
+                            defaultButtonText="Area 1"
+                            dropdownStyle={styles.dropdownStyle}
+                            
+                            onSelect={(selectedItem, index) => {
+                                handleAreaChange(selectedItem);
+                                console.log(selectedItem, index);
+                            }}
+                        />
+
+                </View>
                 
                 <View style={{marginTop: 10, marginLeft: 5}}>
                     
-                    <Text style={{fontWeight:'bold', color: 'black', fontSize: 17}}>Occupancy Data</Text>
-
-                    {fetchOccupancyData()}
-                    
+                    <Text style={{fontWeight:'bold', color: 'white', fontSize: 17}}>Occupancy Data</Text>                    
             
                 </View>
                     <View style= {styles.occupancyData}>
-                        <Text style = {{fontWeight: 'bold'}}>
-                            Area 1: 2, Area 2: 3, Time: 19:00 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 18:50 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 18:40 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 18:30 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 18:20 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 18:10 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 18:00 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 17:50 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 17:40 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 17:30 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 17:20 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 17:10 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 17:00 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 16:50 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 16:40 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 16:30 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 16:20 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 16:10 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 16:00 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 15:50 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 15:40 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 15:30 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 15:20 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 15:10 Est, Date: June 3rd, 2022
-                            Area 1: 2, Area 2: 3, Time: 15:00 Est, Date: June 3rd, 2022
-                        </Text>
-
+                            
+                        <View style={{flexDirection:'row'}}>
+                            <View style={styles.headerField}>
+                                <Text style={styles.headerText}>Date</Text>
+                            </View>
+                            <View style={styles.headerField}>
+                                <Text style={styles.headerText}>Time (24 Hr)</Text>
+                            </View>
+                            <View style={styles.headerField}>
+                                <Text style={styles.headerText}>Day</Text>
+                            </View>
+                            <View style={styles.headerField}>
+                                <Text style={styles.headerText}>Occupancy Count</Text>
+                            </View>
+                        </View>
+  
+                        {displayOccupancyData()}
 
                     </View>                    
 
@@ -179,15 +351,59 @@ const styles = StyleSheet.create ({
     subText: {
         color: 'black', 
     }, 
-    occupancyData: {
-        bordercolor: 'black', 
-        borderWidth: 2, 
-        padding: 5, 
+    occupancyData: { 
         justifyContent: 'center', 
         alignContent: 'center', 
-        textAlign: 'center'
+        alignItems: 'center',
+        textAlign: 'center', 
 
+        height: '60%'
 
-    }
+    }, 
+    selectText: {
+        fontSize: 18, 
+        color: 'black', 
+        fontWeight: 'bold'
+
+    },
+    buttonStyle: {
+        width: '50%',
+        height: '140%',
+        backgroundColor: '#3ECD4C',
+        color: 'black',
+        textAlign: 'center',
+        textAlignVertical: 'center',
+        borderRadius: 12
+
+      },
+
+      dropdownStyle: {
+        width: '50%',
+        borderColor: '#0C4B16',
+        borderWidth: 2,
+
+      },
+      headerText: {
+          color: 'black', 
+          fontSize: 15, 
+          fontWeight:'bold'
+      },
+      headerField: {
+        width: '25%', 
+        backgroundColor:'#629AEF', 
+        bordercolor: 'black', 
+        borderWidth: 2,
+      },
+      rowText: {
+          color: 'black', 
+
+      }, 
+      dataField: {
+        width: '25%', 
+        backgroundColor:'white', 
+        bordercolor: 'black', 
+        borderWidth: 2, 
+
+      }
 
 });
